@@ -8,7 +8,7 @@ import LoanRequestDetailsModal from './LoanRequestDetailsModal';
 import Pagination from './Pagination';
 import { logActivity } from '@/lib/activityLogger';
 import { useAuth } from '@/lib/auth';
-import { approvedloanMessage } from '@/lib/emailService';
+import { approvedloanMessage, rejectedLoanMessage } from '@/lib/emailService';
 import { usePermissions, PermissionGuard } from '@/lib/rolePermissions';
 
 /*
@@ -291,10 +291,11 @@ export default function LoanRequestsManager() {
           fullName: 'User Not Found',
           role: 'N/A'
         };
+        let requestData: any = null;
         let interestRate = 3; // Default interest rate
 
         if (requestResult.success && requestResult.data) {
-          const requestData = requestResult.data as any;
+          requestData = requestResult.data as any;
 
           // Use member information from the loan request
           const fullName = requestData.fullName || `${requestData.firstName || ''} ${requestData.lastName || ''}`.trim() || 'User Not Found';
@@ -405,23 +406,27 @@ export default function LoanRequestsManager() {
             action: 'Loan Approved',
             role: user?.role || 'admin',
           });
-          const email = user?.email || 'unknown';
-          const emailSent = await approvedloanMessage(
-            'theonesama03@gmail.com',
-            memberData.fullName,
-            amount,
-            interestRate,
-            term,
-            dailyPayment
-          );
+
+          // Send approval email
+          try {
+            await approvedloanMessage(
+              requestData?.email,
+              memberData.fullName,
+              amount,
+              interestRate,
+              term,
+              dailyPayment
+            );
+          } catch (emailError) {
+            console.error('Error sending approval email:', emailError);
+          }
           
           // Create approval notification for the user
           try {
             const notificationId = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            const requestData = requestResult.success && requestResult.data ? requestResult.data as any : {};
             await firestore.setDocument('notifications', notificationId, {
               userId: userId,
-              userRole: requestData.role || 'member',
+              userRole: requestData?.role || 'member',
               title: 'Loan Approved',
               message: `Your loan application for ${planName} amounting to ${formatCurrency(amount)} has been approved. The loan is now active with a ${term}-month term.`,
               type: 'loan_approval',
@@ -474,6 +479,34 @@ export default function LoanRequestsManager() {
           action: 'Loan Rejected',
           role: user?.role || 'admin',
         });
+
+        // Send rejection email
+        try {
+          const requestResult = await firestore.getDocument('loanRequests', requestId);
+          if (requestResult.success && requestResult.data) {
+            const requestData = requestResult.data as any;
+            
+            // Calculate placeholder values for rejection email if needed, 
+            // or just placeholders if they haven't been calculated yet
+            const interestRate = 3; // Default or fetch from plan
+            const totalDays = requestData.term * 30;
+            const interestAmount = requestData.amount * (interestRate / 100);
+            const totalAmount = requestData.amount + interestAmount;
+            const dailyPayment = totalAmount / totalDays;
+
+            await rejectedLoanMessage(
+              requestData.email,
+              requestData.fullName || `${requestData.firstName || ''} ${requestData.lastName || ''}`.trim() || 'User',
+              requestData.amount,
+              interestRate,
+              requestData.term,
+              dailyPayment,
+              rejectionReason
+            );
+          }
+        } catch (emailError) {
+          console.error('Error sending rejection email:', emailError);
+        }
         
         // Create rejection notification for the user
         try {

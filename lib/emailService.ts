@@ -8,24 +8,17 @@ const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
     return window.location.origin;
   }
-  return 'http://localhost:3000';
+  return 'https://sampa-coop.vercel.app';
 };
 
 // EmailJS Configuration - fetch from environment variables
 const getEmailJSConfig = () => {
-  // For client-side rendering
-  if (typeof window !== 'undefined') {
-    return {
-      publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || '',
-      serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '',
-      templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || ''
-    };
-  }
-  // For server-side, return empty strings
   return {
-    publicKey: '',
-    serviceId: '',
-    templateId: ''
+    publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || '',
+    serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '',
+    paymentTemplateId: process.env.NEXT_PUBLIC_EMAILJS_PAYMENT_TEMPLATE_ID || '',
+    generalTemplateId: process.env.NEXT_PUBLIC_EMAILJS_GENERAL_TEMPLATE_ID || '',
+    templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || process.env.NEXT_PUBLIC_EMAILJS_GENERAL_TEMPLATE_ID || ''
   };
 };
 
@@ -103,7 +96,7 @@ SAMPA Cooperative Team`
   };
 
   const config = getEmailJSConfig();
-  return sendEmail(config.templateId, emailData);
+  return sendEmail(config.generalTemplateId || config.templateId, emailData);
 };
 
 // Send email with auto-generated password (alternative approach)
@@ -129,7 +122,7 @@ SAMPA Cooperative Team`
   };
 
   const config = getEmailJSConfig();
-  return sendEmail(config.templateId, emailData);
+  return sendEmail(config.generalTemplateId || config.templateId, emailData);
 };
 
 export const sendLoanApprovalEmail = async (email: string, name: string, loanId: string) => {
@@ -151,7 +144,7 @@ SAMPA Cooperative Team`
   };
 
   const config = getEmailJSConfig();
-  return sendEmail(config.templateId, emailData);
+  return sendEmail(config.generalTemplateId || config.templateId, emailData);
 };
 
 // Send certificate generation notification email
@@ -183,7 +176,7 @@ SAMPA Cooperative Team`
   };
 
   const config = getEmailJSConfig();
-  return sendEmail(config.templateId, emailData);
+  return sendEmail(config.generalTemplateId || config.templateId, emailData);
 
 };
 
@@ -216,7 +209,7 @@ export const sendPaymentMessage = async (
   };
 
   const config = getEmailJSConfig();
-  return sendEmail(config.templateId, emailData);
+  return sendEmail(config.paymentTemplateId || config.templateId, emailData);
 
 };
 
@@ -251,7 +244,7 @@ export const approvedloanMessage = async (
   };
 
   const config = getEmailJSConfig();
-  return sendEmail(config.templateId, emailData);
+  return sendEmail(config.generalTemplateId || config.templateId, emailData);
 
 };
 
@@ -288,6 +281,6 @@ export const rejectedLoanMessage = async (
   };
 
   const config = getEmailJSConfig();
-  return sendEmail(config.templateId, emailData);
+  return sendEmail(config.generalTemplateId || config.templateId, emailData);
 
 };
