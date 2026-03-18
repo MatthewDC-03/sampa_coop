@@ -10,12 +10,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Environment variables
-.env*.local
-.env
-.env.development
-.env.production
-.env.test
 *.json
 !package.json
 !package-lock.json
