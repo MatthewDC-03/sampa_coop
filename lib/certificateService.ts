@@ -251,15 +251,32 @@ export async function generateShareCertificate(
     };
 
     // Store certificate data in the member's document
-    const updateResult = await firestore.updateDocument('members', memberData.id, {
+    // Try to find the member by ID first, if that fails, try by email
+    let updateResult = await firestore.updateDocument('members', memberData.id, {
       shareCertificate: certificateData,
       shareCertificateGenerated: true,
       shareCertificateGeneratedAt: new Date().toISOString()
     });
 
+    // If update failed, try to find member by email and update using that ID
+    if (!updateResult.success && memberData.email) {
+      const memberQuery = await firestore.queryDocuments('members', [
+        { field: 'email', operator: '==', value: memberData.email }
+      ]);
+      
+      if (memberQuery.success && memberQuery.data && memberQuery.data.length > 0) {
+        const actualMemberId = memberQuery.data[0].id;
+        updateResult = await firestore.updateDocument('members', actualMemberId, {
+          shareCertificate: certificateData,
+          shareCertificateGenerated: true,
+          shareCertificateGeneratedAt: new Date().toISOString()
+        });
+      }
+    }
+
     if (!updateResult.success) {
       console.error('Failed to save certificate data:', updateResult.error);
-      return { success: false, error: 'Failed to save certificate data' };
+      return { success: false, error: 'Failed to save certificate data - Member not found' };
     }
 
     return { 
@@ -362,8 +379,7 @@ export async function generateAndSendCertificate(
     await firestore.setDocument('member_certificates', certificateRecord.certificateNumber, certificateRecord);
 
     // Send email notification with certificate link
-    const baseUrl = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-    const certificateDownloadUrl = `${baseUrl}/api/certificate/${memberData.id}`;
+    const certificateDownloadUrl = `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/certificate/${memberData.id}`;
     
     const emailSent = await sendCertificateNotificationEmail(
       memberData.email,
